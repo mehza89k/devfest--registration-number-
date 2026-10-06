@@ -1,824 +1,1230 @@
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Escape - Evacuation Route Simulation</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: { 50: '#eff6ff', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' }
-                    }
-                }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Escape — Vue Frontend</title>
+
+  <!-- Frontend framework: Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+  <!-- Styling: Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              400: "#60a5fa",
+              500: "#3b82f6",
+              600: "#2563eb",
+              700: "#1d4ed8"
             }
+          },
+          boxShadow: {
+            glow: "0 0 30px rgba(59,130,246,.16)"
+          }
         }
-    </script>
+      }
+    };
+  </script>
+
+  <style>
+    * { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
+    html, body, #app { min-height: 100%; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(37,99,235,.10), transparent 30%),
+        radial-gradient(circle at 85% 80%, rgba(16,185,129,.07), transparent 28%),
+        #020617;
+      color: #e2e8f0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .glass {
+      background: rgba(15, 23, 42, .72);
+      border: 1px solid rgba(71, 85, 105, .55);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .panel {
+      background: rgba(15, 23, 42, .86);
+      border: 1px solid rgba(51, 65, 85, .9);
+    }
+
+    .soft-ring:focus-visible {
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
+
+    canvas { touch-action: none; }
+
+    .pulse-dot {
+      animation: pulseDot 1.8s infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,.45); }
+      50% { box-shadow: 0 0 0 7px rgba(16,185,129,0); }
+    }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-100 h-full flex flex-col font-sans select-none">
 
-    <!-- Top Header -->
-    <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between shadow-md">
-        <div class="flex items-center space-x-3">
-            <div class="bg-blue-600 text-white p-2 rounded-lg font-bold text-xl shadow">
-                🚪🏃‍♂️
-            </div>
-            <div>
-                <h1 class="text-xl font-bold tracking-tight" id="appTitle">Smart Escape</h1>
-                <p class="text-xs text-slate-400" id="appSubtitle">AI DevFest Practice Challenge - Evacuation Simulator</p>
-            </div>
+<body class="h-full">
+<div id="app" class="min-h-screen flex flex-col">
+
+  <!-- HEADER -->
+  <header class="sticky top-0 z-30 border-b border-slate-800/90 bg-slate-950/85 backdrop-blur-xl">
+    <div class="px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-700
+                    flex items-center justify-center text-xl shadow-lg shadow-blue-900/30 shrink-0">
+          🚪
         </div>
-        <div class="flex items-center space-x-4">
-            <!-- Language Toggle Button -->
-            <button onclick="toggleLanguage()" id="langBtn" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-sm font-medium rounded-lg border border-slate-600 transition flex items-center space-x-1.5">
-                <span>🌐</span>
-                <span id="langText">বাংলা</span>
-            </button>
-            <!-- Reset Button -->
-            <button onclick="resetToInitialState()" id="resetBtn" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium rounded-lg shadow transition flex items-center space-x-1.5">
-                <span>🔄</span>
-                <span id="resetText">Reset</span>
-            </button>
+
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h1 class="font-black tracking-tight text-lg sm:text-xl truncate">
+              {{ t.appTitle }}
+            </h1>
+            <span class="hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold
+                         bg-blue-500/10 text-blue-300 border border-blue-500/20">
+              VUE 3
+            </span>
+          </div>
+          <p class="text-[11px] sm:text-xs text-slate-400 truncate">{{ t.appSubtitle }}</p>
         </div>
-    </header>
+      </div>
 
-    <!-- Main Workspace -->
-    <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        
-        <!-- Left Sidebar: Controls & Inspector -->
-        <aside class="w-full lg:w-96 bg-slate-800/90 border-r border-slate-700 flex flex-col overflow-y-auto p-5 space-y-6">
-            
-            <!-- Dataset Loader -->
-            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700/80 shadow-inner">
-                <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3" id="secConfig">Configuration & Data</h2>
-                <div class="space-y-3">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1" id="lblLoadSample">Quick Scenarios</label>
-                        <select id="scenarioSelect" onchange="loadSelectedScenario(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="baseline">Baseline (Initial State)</option>
-                            <option value="blocked_c2">Blocked Junction C2</option>
-                            <option value="closed_exits">Closed Exits (E1 & E2)</option>
-                            <option value="diff_start">Different Start (R2)</option>
-                            <option value="blocked_start">Blocked Start (R1)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1" id="lblUploadJson">Upload building.json</label>
-                        <input type="file" id="jsonFileInput" accept=".json" onchange="handleFileUpload(event)" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer"/>
-                    </div>
-                </div>
-            </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <div class="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+          <span class="text-slate-400">{{ currentBuilding.building }}</span>
+        </div>
 
-            <!-- Start Location & Routing Status -->
-            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700/80 shadow-inner">
-                <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3" id="secRouting">Route Guidance</h2>
-                <div class="space-y-3">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1" id="lblSelectStart">Starting Location</label>
-                        <select id="startNodeSelect" onchange="changeStartNode(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </select>
-                    </div>
+        <button
+          @click="toggleLanguage"
+          class="soft-ring px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700
+                 border border-slate-700 text-xs font-semibold transition"
+        >
+          🌐 {{ t.langText }}
+        </button>
 
-                    <!-- Status Display Box -->
-                    <div id="routeStatusCard" class="mt-4 p-3.5 rounded-lg border bg-slate-800 border-slate-700 transition-all">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400" id="lblStatusHeader">Status</span>
-                            <span id="routeCostBadge" class="text-xs px-2 py-0.5 rounded font-bold bg-slate-700 text-slate-300">Cost: --</span>
-                        </div>
-                        <div id="routeResultText" class="text-sm font-semibold text-slate-100">Select a start location.</div>
-                        <div id="routeSequenceText" class="text-xs text-slate-400 mt-1"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Hazard Manager Panel -->
-            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700/80 shadow-inner flex-1 flex flex-col">
-                <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-3" id="secHazards">Hazard Manager</h2>
-                <p class="text-xs text-slate-400 mb-3" id="lblHazardHint">Click elements on canvas or toggle below to simulate hazards.</p>
-                
-                <div class="space-y-4 overflow-y-auto max-h-60 pr-1 flex-1" id="hazardTogglesList">
-                    <!-- Dynamic Hazard Controls Injected Here -->
-                </div>
-            </div>
-
-        </aside>
-
-        <!-- Right Main Content: Interactive Canvas -->
-        <main class="flex-1 bg-slate-950 relative flex flex-col overflow-hidden">
-            <!-- Canvas Toolbar overlay -->
-            <div class="absolute top-4 left-4 z-10 bg-slate-900/80 backdrop-blur border border-slate-700 px-4 py-2 rounded-xl shadow-lg flex items-center space-x-4 text-xs">
-                <div class="flex items-center space-x-1.5">
-                    <span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
-                    <span class="text-slate-300" id="legendRoom">Room / Junction</span>
-                </div>
-                <div class="flex items-center space-x-1.5">
-                    <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
-                    <span class="text-slate-300" id="legendExit">Exit</span>
-                </div>
-                <div class="flex items-center space-x-1.5">
-                    <span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>
-                    <span class="text-slate-300" id="legendBlocked">Blocked / Closed</span>
-                </div>
-                <div class="flex items-center space-x-1.5">
-                    <span class="w-6 h-0.5 bg-amber-400 inline-block"></span>
-                    <span class="text-slate-300" id="legendRoute">Optimal Route</span>
-                </div>
-            </div>
-
-            <!-- Canvas Element -->
-            <div class="flex-1 w-full h-full cursor-grab active:cursor-grabbing relative" id="canvasContainer">
-                <canvas id="mapCanvas" class="w-full h-full block"></canvas>
-            </div>
-
-            <!-- Footer info -->
-            <div class="bg-slate-900 border-t border-slate-800 px-4 py-2 text-xs text-slate-500 flex justify-between items-center">
-                <span id="buildingNameLabel">Building: Main Facility</span>
-                <span id="footerTip">💡 Tip: Click any node or corridor to instantly toggle its hazard state.</span>
-            </div>
-        </main>
-
+        <button
+          @click="resetToInitialState"
+          class="soft-ring px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500
+                 text-white text-xs font-bold transition shadow-lg shadow-amber-900/20"
+        >
+          ↻ <span class="hidden sm:inline">{{ t.resetText }}</span>
+        </button>
+      </div>
     </div>
+  </header>
 
-    <!-- Application Script -->
-    <script>
-        // Sample Default Dataset
-        const defaultBuilding = {
-            "building": "Main Facility",
-            "nodes": [
-                { "id": "R1", "label": "Room 1", "type": "room", "x": 100, "y": 200 },
-                { "id": "R2", "label": "Room 2", "type": "room", "x": 100, "y": 400 },
-                { "id": "C1", "label": "Junction 1", "type": "junction", "x": 300, "y": 200 },
-                { "id": "C2", "label": "Junction 2", "type": "junction", "x": 500, "y": 200 },
-                { "id": "C3", "label": "Junction 3", "type": "junction", "x": 300, "y": 400 },
-                { "id": "C4", "label": "Junction 4", "type": "junction", "x": 500, "y": 400 },
-                { "id": "E1", "label": "Exit 1", "type": "exit", "x": 700, "y": 200 },
-                { "id": "E2", "label": "Exit 2", "type": "exit", "x": 700, "y": 400 }
-            ],
-            "edges": [
-                { "id": "e1", "from": "R1", "to": "C1", "cost": 3 },
-                { "id": "e2", "from": "C1", "to": "C2", "cost": 2 },
-                { "id": "e3", "from": "C2", "to": "E1", "cost": 2 },
-                { "id": "e4", "from": "R2", "to": "C3", "cost": 3 },
-                { "id": "e5", "from": "C3", "to": "C4", "cost": 2 },
-                { "id": "e6", "from": "C4", "to": "E2", "cost": 2 },
-                { "id": "e7", "from": "C1", "to": "C3", "cost": 4 },
-                { "id": "e8", "from": "C2", "to": "C4", "cost": 5 }
-            ],
-            "initial_state": {
-                "blocked_nodes": [],
-                "blocked_edges": [],
-                "closed_exits": []
-            }
-        };
+  <!-- WORKSPACE -->
+  <main class="flex-1 flex flex-col lg:flex-row min-h-0">
 
-        let currentBuilding = JSON.parse(JSON.stringify(defaultBuilding));
-        let initialState = JSON.parse(JSON.stringify(defaultBuilding.initial_state));
-        
-        // Active state
-        let currentStartNode = "R1";
-        let blockedNodes = new Set();
-        let blockedEdges = new Set();
-        let closedExits = new Set();
-        let currentLang = 'en';
+    <!-- SIDEBAR -->
+    <aside class="w-full lg:w-[380px] xl:w-[410px] border-r border-slate-800 bg-slate-950/80
+                  flex flex-col min-h-0 overflow-y-auto">
 
-        // Translations Dictionary
-        const translations = {
-            en: {
-                appTitle: "Smart Escape",
-                appSubtitle: "AI DevFest Practice Challenge - Evacuation Simulator",
-                langText: "বাংলা",
-                resetText: "Reset",
-                secConfig: "Configuration & Data",
-                lblLoadSample: "Quick Scenarios",
-                lblUploadJson: "Upload building.json",
-                secRouting: "Route Guidance",
-                lblSelectStart: "Starting Location",
-                lblStatusHeader: "Status",
-                secHazards: "Hazard Manager",
-                lblHazardHint: "Click elements on canvas or toggle below to simulate hazards.",
-                legendRoom: "Room / Junction",
-                legendExit: "Exit",
-                legendBlocked: "Blocked / Closed",
-                legendRoute: "Optimal Route",
-                footerTip: "💡 Tip: Click any node or corridor to instantly toggle its hazard state.",
-                statusNoStart: "Please select a valid starting location.",
-                statusBlockedStart: "Starting location blocked",
-                statusNoRoute: "No route available",
-                statusCost: "Cost"
-            },
-            bn: {
-                appTitle: "স্মার্ট এস্কেপ",
-                appSubtitle: "এআই ডেভফেস্ট প্র্যাকটিস চ্যালেঞ্জ - ইভাকুয়েশন সিমুলেটর",
-                langText: "English",
-                resetText: "রিসেট",
-                secConfig: "কনফিগারেশন ও ডাটা",
-                lblLoadSample: "নমুনা দৃশ্যপট",
-                lblUploadJson: "building.json আপলোড করুন",
-                secRouting: "রুট নির্দেশনা",
-                lblSelectStart: "শুরুর অবস্থান",
-                lblStatusHeader: "অবস্থা",
-                secHazards: "ঝুঁকি ব্যবস্থাপনা",
-                lblHazardHint: "ক্যানভাসে ক্লিক করুন অথবা নিচে টগল করুন।",
-                legendRoom: "রুম / জংশন",
-                legendExit: "প্রস্থান",
-                legendBlocked: "অবরুদ্ধ / বন্ধ",
-                legendRoute: "অনুকূল রুট",
-                footerTip: "💡 টিপস: যেকোনো নোড বা করিডোরে ক্লিক করে ঝুঁকি টগল করুন।",
-                statusNoStart: "দয়া করে একটি বৈধ শুরুর অবস্থান নির্বাচন করুন।",
-                statusBlockedStart: "শুরুর অবস্থান অবরুদ্ধ",
-                statusNoRoute: "কোনো রুট পাওয়া যায়নি",
-                statusCost: "খরচ"
-            }
-        };
+      <div class="p-4 sm:p-5 space-y-4">
 
-        // Canvas Pan & Zoom state
-        let canvas, ctx;
-        let scale = 1;
-        let offsetX = 0;
-        let offsetY = 0;
-        let isDragging = false;
-        let startX = 0, startY = 0;
+        <!-- ROUTE HERO -->
+        <section
+          class="rounded-2xl p-4 border transition-all"
+          :class="routeCardClass"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-[10px] uppercase tracking-[.18em] font-black text-slate-400">
+                {{ t.lblStatusHeader }}
+              </p>
+              <h2 class="mt-1 text-lg font-black">{{ routeTitle }}</h2>
+              <p class="mt-1 text-xs text-slate-400 break-all">{{ routeSequence }}</p>
+            </div>
 
-        window.addEventListener('DOMContentLoaded', () => {
-            canvas = document.getElementById('mapCanvas');
-            ctx = canvas.getContext('2d');
-            
-            initCanvasResize();
-            loadBuildingData(defaultBuilding);
+            <div class="px-2.5 py-1 rounded-lg bg-slate-950/40 border border-white/10
+                        text-[11px] font-black whitespace-nowrap">
+              {{ costLabel }}
+            </div>
+          </div>
 
-            // Canvas mouse event listeners for panning & node clicking
-            canvas.addEventListener('mousedown', onMouseDown);
-            canvas.addEventListener('mousemove', onMouseMove);
-            canvas.addEventListener('mouseup', onMouseUp);
-            canvas.addEventListener('wheel', onWheel);
-            canvas.addEventListener('click', onCanvasClick);
+          <div v-if="lastRouteData" class="mt-4 grid grid-cols-3 gap-2">
+            <div class="rounded-xl bg-slate-950/30 border border-white/5 p-2">
+              <p class="text-[9px] uppercase text-slate-500 font-bold">Exit</p>
+              <p class="font-black text-sm text-emerald-300">{{ lastRouteData.exitId }}</p>
+            </div>
+            <div class="rounded-xl bg-slate-950/30 border border-white/5 p-2">
+              <p class="text-[9px] uppercase text-slate-500 font-bold">Cost</p>
+              <p class="font-black text-sm text-amber-300">{{ lastRouteData.cost }}</p>
+            </div>
+            <div class="rounded-xl bg-slate-950/30 border border-white/5 p-2">
+              <p class="text-[9px] uppercase text-slate-500 font-bold">Steps</p>
+              <p class="font-black text-sm text-blue-300">{{ Math.max(lastRouteData.path.length - 1, 0) }}</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- CONFIG -->
+        <section class="panel rounded-2xl p-4 shadow-glow">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <p class="text-[10px] uppercase tracking-[.18em] text-blue-400 font-black">01</p>
+              <h2 class="text-sm font-bold text-slate-100">{{ t.secConfig }}</h2>
+            </div>
+            <span class="text-lg">⚙️</span>
+          </div>
+
+          <label class="block text-xs font-semibold text-slate-400 mb-1.5">
+            {{ t.lblLoadSample }}
+          </label>
+
+          <select
+            v-model="selectedScenario"
+            @change="loadSelectedScenario(selectedScenario)"
+            class="soft-ring w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5
+                   text-sm text-slate-200"
+          >
+            <option value="baseline">Baseline — Initial State</option>
+            <option value="blocked_c2">Blocked Junction C2</option>
+            <option value="closed_exits">Closed Exits — E1 & E2</option>
+            <option value="diff_start">Different Start — R2</option>
+            <option value="blocked_start">Blocked Start — R1</option>
+          </select>
+
+          <label class="block text-xs font-semibold text-slate-400 mt-4 mb-1.5">
+            {{ t.lblUploadJson }}
+          </label>
+
+          <label class="flex items-center justify-center gap-2 px-3 py-3 rounded-xl
+                        border border-dashed border-slate-700 hover:border-blue-500/60
+                        bg-slate-900/60 hover:bg-blue-500/5 cursor-pointer transition text-xs">
+            <span>📁</span>
+            <span class="text-slate-300 font-medium">Choose building.json</span>
+            <input
+              type="file"
+              accept=".json"
+              @change="handleFileUpload"
+              class="hidden"
+            />
+          </label>
+        </section>
+
+        <!-- ROUTING -->
+        <section class="panel rounded-2xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <p class="text-[10px] uppercase tracking-[.18em] text-emerald-400 font-black">02</p>
+              <h2 class="text-sm font-bold">{{ t.secRouting }}</h2>
+            </div>
+            <span class="text-lg">🧭</span>
+          </div>
+
+          <label class="block text-xs font-semibold text-slate-400 mb-1.5">
+            {{ t.lblSelectStart }}
+          </label>
+
+          <select
+            v-model="currentStartNode"
+            @change="calculateAndDisplayRoute"
+            class="soft-ring w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5
+                   text-sm"
+          >
+            <option
+              v-for="node in startNodes"
+              :key="node.id"
+              :value="node.id"
+            >
+              {{ node.label }} ({{ node.id }})
+            </option>
+          </select>
+        </section>
+
+        <!-- HAZARDS -->
+        <section class="panel rounded-2xl p-4">
+          <div class="flex items-start justify-between mb-3">
+            <div>
+              <p class="text-[10px] uppercase tracking-[.18em] text-red-400 font-black">03</p>
+              <h2 class="text-sm font-bold">{{ t.secHazards }}</h2>
+              <p class="text-[11px] text-slate-500 mt-1">{{ t.lblHazardHint }}</p>
+            </div>
+            <span class="text-lg">⚠️</span>
+          </div>
+
+          <div class="flex gap-2 mb-3">
+            <div class="flex-1 rounded-xl bg-red-500/5 border border-red-500/10 p-2">
+              <p class="text-[9px] uppercase text-slate-500 font-bold">Blocked</p>
+              <p class="font-black text-red-300">{{ blockedCount }}</p>
+            </div>
+            <div class="flex-1 rounded-xl bg-emerald-500/5 border border-emerald-500/10 p-2">
+              <p class="text-[9px] uppercase text-slate-500 font-bold">Open exits</p>
+              <p class="font-black text-emerald-300">{{ openExitCount }}</p>
+            </div>
+          </div>
+
+          <div class="space-y-1.5 max-h-[330px] overflow-y-auto pr-1">
+            <div
+              v-for="hazard in hazards"
+              :key="hazard.id"
+              class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl
+                     bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition"
+            >
+              <div class="min-w-0">
+                <p class="text-xs text-slate-300 truncate">{{ hazard.label }}</p>
+                <p class="text-[9px] text-slate-600 uppercase font-bold">{{ hazard.kind }}</p>
+              </div>
+
+              <button
+                @click="toggleHazard(hazard)"
+                class="relative w-10 h-5 rounded-full transition shrink-0"
+                :class="hazard.active ? 'bg-red-600' : 'bg-slate-700'"
+                :aria-label="`Toggle ${hazard.label}`"
+              >
+                <span
+                  class="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                  :class="hazard.active ? 'translate-x-5' : 'translate-x-0.5'"
+                ></span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </aside>
+
+    <!-- CANVAS AREA -->
+    <section class="flex-1 min-h-[620px] lg:min-h-0 relative bg-[#020617] flex flex-col">
+
+      <!-- Floating legend -->
+      <div class="absolute top-4 left-4 z-10 glass rounded-2xl px-3 py-2.5
+                  flex flex-wrap gap-x-4 gap-y-2 text-[10px] shadow-xl">
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+          <span class="text-slate-300">Room / Junction</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          <span class="text-slate-300">Exit</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+          <span class="text-slate-300">Blocked</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-5 h-0.5 bg-amber-400"></span>
+          <span class="text-slate-300">Optimal</span>
+        </div>
+      </div>
+
+      <!-- Canvas controls -->
+      <div class="absolute top-4 right-4 z-10 flex gap-2">
+        <button
+          @click="zoomOut"
+          class="soft-ring glass w-9 h-9 rounded-xl text-sm hover:bg-slate-800 transition"
+          title="Zoom out"
+        >−</button>
+        <button
+          @click="fitView"
+          class="soft-ring glass px-3 h-9 rounded-xl text-xs font-bold hover:bg-slate-800 transition"
+        >Fit</button>
+        <button
+          @click="zoomIn"
+          class="soft-ring glass w-9 h-9 rounded-xl text-sm hover:bg-slate-800 transition"
+          title="Zoom in"
+        >+</button>
+      </div>
+
+      <div id="canvasContainer" class="flex-1 min-h-0">
+        <canvas
+          ref="mapCanvas"
+          @mousedown="onMouseDown"
+          @mousemove="onMouseMove"
+          @mouseup="onMouseUp"
+          @mouseleave="onMouseUp"
+          @wheel.prevent="onWheel"
+          @click="onCanvasClick"
+          class="w-full h-full block cursor-grab active:cursor-grabbing"
+        ></canvas>
+      </div>
+
+      <!-- Bottom bar -->
+      <footer class="border-t border-slate-800 bg-slate-950/90 px-4 py-2.5
+                     flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-[10px]">
+        <span class="text-slate-500">
+          🏢 {{ currentBuilding.building }}
+        </span>
+        <span class="text-slate-600">
+          💡 Click nodes/corridors to toggle hazards · Drag to pan · Scroll to zoom
+        </span>
+      </footer>
+    </section>
+  </main>
+</div>
+
+<script>
+const { createApp, computed, nextTick } = Vue;
+
+createApp({
+  data() {
+    return {
+      defaultBuilding: {
+        building: "Main Facility",
+        nodes: [
+          { id: "R1", label: "Room 1", type: "room", x: 100, y: 200 },
+          { id: "R2", label: "Room 2", type: "room", x: 100, y: 400 },
+          { id: "C1", label: "Junction 1", type: "junction", x: 300, y: 200 },
+          { id: "C2", label: "Junction 2", type: "junction", x: 500, y: 200 },
+          { id: "C3", label: "Junction 3", type: "junction", x: 300, y: 400 },
+          { id: "C4", label: "Junction 4", type: "junction", x: 500, y: 400 },
+          { id: "E1", label: "Exit 1", type: "exit", x: 700, y: 200 },
+          { id: "E2", label: "Exit 2", type: "exit", x: 700, y: 400 }
+        ],
+        edges: [
+          { id: "e1", from: "R1", to: "C1", cost: 3 },
+          { id: "e2", from: "C1", to: "C2", cost: 2 },
+          { id: "e3", from: "C2", to: "E1", cost: 2 },
+          { id: "e4", from: "R2", to: "C3", cost: 3 },
+          { id: "e5", from: "C3", to: "C4", cost: 2 },
+          { id: "e6", from: "C4", to: "E2", cost: 2 },
+          { id: "e7", from: "C1", to: "C3", cost: 4 },
+          { id: "e8", from: "C2", to: "C4", cost: 5 }
+        ],
+        initial_state: {
+          blocked_nodes: [],
+          blocked_edges: [],
+          closed_exits: []
+        }
+      },
+
+      currentBuilding: null,
+      initialState: null,
+
+      currentStartNode: "R1",
+      blockedNodes: new Set(),
+      blockedEdges: new Set(),
+      closedExits: new Set(),
+
+      currentLang: "en",
+      selectedScenario: "baseline",
+
+      lastRouteData: null,
+
+      canvas: null,
+      ctx: null,
+      scale: 1,
+      offsetX: 0,
+      offsetY: 0,
+      isDragging: false,
+      dragStartX: 0,
+      dragStartY: 0
+    };
+  },
+
+  computed: {
+    t() {
+      return this.translations[this.currentLang];
+    },
+
+    startNodes() {
+      return this.currentBuilding.nodes.filter(n => n.type !== "exit");
+    },
+
+    hazards() {
+      const result = [];
+
+      this.currentBuilding.nodes.forEach(n => {
+        if (n.type === "exit") {
+          result.push({
+            id: n.id,
+            kind: "exit",
+            label: `Exit: ${n.label}`,
+            active: this.closedExits.has(n.id)
+          });
+        } else {
+          result.push({
+            id: n.id,
+            kind: "node",
+            label: `Room/Junction: ${n.label}`,
+            active: this.blockedNodes.has(n.id)
+          });
+        }
+      });
+
+      this.currentBuilding.edges.forEach(e => {
+        result.push({
+          id: e.id,
+          kind: "corridor",
+          label: `Corridor: ${e.from} ↔ ${e.to} · cost ${e.cost}`,
+          active: this.blockedEdges.has(e.id)
+        });
+      });
+
+      return result;
+    },
+
+    blockedCount() {
+      return this.blockedNodes.size + this.blockedEdges.size + this.closedExits.size;
+    },
+
+    openExitCount() {
+      return this.currentBuilding.nodes.filter(
+        n => n.type === "exit" && !this.closedExits.has(n.id)
+      ).length;
+    },
+
+    routeTitle() {
+      if (!this.currentStartNode) return this.t.statusNoStart;
+      if (this.blockedNodes.has(this.currentStartNode)) return this.t.statusBlockedStart;
+      if (!this.lastRouteData) return this.t.statusNoRoute;
+      return `Route to ${this.lastRouteData.exitId}`;
+    },
+
+    routeSequence() {
+      if (!this.currentStartNode) return "";
+      if (this.blockedNodes.has(this.currentStartNode)) {
+        return `Node ${this.currentStartNode} is currently blocked.`;
+      }
+      if (!this.lastRouteData) return "No accessible open exit found.";
+      return this.lastRouteData.path.join("  ➜  ");
+    },
+
+    costLabel() {
+      return this.lastRouteData
+        ? `${this.t.statusCost}: ${this.lastRouteData.cost}`
+        : `${this.t.statusCost}: ∞`;
+    },
+
+    routeCardClass() {
+      if (!this.currentStartNode || this.blockedNodes.has(this.currentStartNode)) {
+        return "bg-red-950/40 border-red-800/70";
+      }
+      if (!this.lastRouteData) {
+        return "bg-amber-950/30 border-amber-800/60";
+      }
+      return "bg-emerald-950/30 border-emerald-800/60";
+    },
+
+    translations() {
+      return {
+        en: {
+          appTitle: "Smart Escape",
+          appSubtitle: "AI DevFest Practice Challenge · Evacuation Route Simulator",
+          langText: "বাংলা",
+          resetText: "Reset",
+          secConfig: "Configuration & Data",
+          lblLoadSample: "Quick Scenarios",
+          lblUploadJson: "Upload building.json",
+          secRouting: "Route Guidance",
+          lblSelectStart: "Starting Location",
+          lblStatusHeader: "Route Status",
+          secHazards: "Hazard Manager",
+          lblHazardHint: "Toggle hazards manually or click the map.",
+          statusNoStart: "Please select a valid starting location.",
+          statusBlockedStart: "Starting location blocked",
+          statusNoRoute: "No route available",
+          statusCost: "Cost"
+        },
+        bn: {
+          appTitle: "স্মার্ট এস্কেপ",
+          appSubtitle: "এআই ডেভফেস্ট প্র্যাকটিস চ্যালেঞ্জ · ইভাকুয়েশন রুট সিমুলেটর",
+          langText: "English",
+          resetText: "রিসেট",
+          secConfig: "কনফিগারেশন ও ডাটা",
+          lblLoadSample: "নমুনা দৃশ্যপট",
+          lblUploadJson: "building.json আপলোড করুন",
+          secRouting: "রুট নির্দেশনা",
+          lblSelectStart: "শুরুর অবস্থান",
+          lblStatusHeader: "রুটের অবস্থা",
+          secHazards: "ঝুঁকি ব্যবস্থাপনা",
+          lblHazardHint: "ম্যানুয়ালি ঝুঁকি টগল করুন অথবা ম্যাপে ক্লিক করুন।",
+          statusNoStart: "দয়া করে একটি বৈধ শুরুর অবস্থান নির্বাচন করুন।",
+          statusBlockedStart: "শুরুর অবস্থান অবরুদ্ধ",
+          statusNoRoute: "কোনো রুট পাওয়া যায়নি",
+          statusCost: "খরচ"
+        }
+      };
+    }
+  },
+
+  mounted() {
+    this.currentBuilding = JSON.parse(JSON.stringify(this.defaultBuilding));
+    this.initialState = JSON.parse(JSON.stringify(this.defaultBuilding.initial_state));
+
+    nextTick(() => {
+      this.canvas = this.$refs.mapCanvas;
+      this.ctx = this.canvas.getContext("2d");
+      this.resizeCanvas();
+
+      window.addEventListener("resize", this.resizeCanvas);
+      this.resetToInitialState();
+    });
+  },
+
+  beforeUnmount() {
+    window.removeEventListener("resize", this.resizeCanvas);
+  },
+
+  methods: {
+    resizeCanvas() {
+      if (!this.canvas) return;
+      const container = document.getElementById("canvasContainer");
+      this.canvas.width = Math.max(container.clientWidth, 320);
+      this.canvas.height = Math.max(container.clientHeight, 420);
+      this.drawMap();
+    },
+
+    toggleLanguage() {
+      this.currentLang = this.currentLang === "en" ? "bn" : "en";
+      this.calculateAndDisplayRoute();
+    },
+
+    loadBuildingData(buildingObj) {
+      try {
+        this.validateBuildingSchema(buildingObj);
+
+        this.currentBuilding = JSON.parse(JSON.stringify(buildingObj));
+        this.initialState = JSON.parse(JSON.stringify(
+          buildingObj.initial_state || {
+            blocked_nodes: [],
+            blocked_edges: [],
+            closed_exits: []
+          }
+        ));
+
+        const valid = this.currentBuilding.nodes.filter(n => n.type !== "exit");
+        if (!valid.some(n => n.id === this.currentStartNode)) {
+          this.currentStartNode = valid.length ? valid[0].id : "";
+        }
+
+        this.resetToInitialState();
+      } catch (err) {
+        alert("Invalid Building JSON: " + err.message);
+        console.error(err);
+      }
+    },
+
+    validateBuildingSchema(data) {
+      if (!data.building || typeof data.building !== "string") {
+        throw new Error("Missing or invalid 'building' name.");
+      }
+
+      if (!Array.isArray(data.nodes) || data.nodes.length < 2) {
+        throw new Error("Nodes must be an array with at least 2 elements.");
+      }
+
+      if (!Array.isArray(data.edges) || data.edges.length < 1) {
+        throw new Error("Edges must be a non-empty array.");
+      }
+
+      const nodeIds = new Set();
+
+      data.nodes.forEach(n => {
+        if (
+          !n.id ||
+          !n.label ||
+          !n.type ||
+          typeof n.x !== "number" ||
+          typeof n.y !== "number"
+        ) {
+          throw new Error("Invalid node structure.");
+        }
+
+        if (nodeIds.has(n.id)) {
+          throw new Error(`Duplicate node ID: ${n.id}`);
+        }
+
+        nodeIds.add(n.id);
+      });
+
+      data.edges.forEach(e => {
+        if (
+          !e.id ||
+          !e.from ||
+          !e.to ||
+          typeof e.cost !== "number" ||
+          e.cost <= 0
+        ) {
+          throw new Error("Invalid edge structure or non-positive cost.");
+        }
+
+        if (!nodeIds.has(e.from) || !nodeIds.has(e.to)) {
+          throw new Error(`Edge ${e.id} references non-existent node.`);
+        }
+      });
+    },
+
+    resetToInitialState() {
+      this.blockedNodes = new Set(this.initialState.blocked_nodes || []);
+      this.blockedEdges = new Set(this.initialState.blocked_edges || []);
+      this.closedExits = new Set(this.initialState.closed_exits || []);
+
+      const validNodes = this.currentBuilding.nodes.filter(n => n.type !== "exit");
+
+      if (!validNodes.some(n => n.id === this.currentStartNode)) {
+        this.currentStartNode = validNodes.length ? validNodes[0].id : "";
+      }
+
+      this.lastRouteData = null;
+      this.autoFitView();
+      this.calculateAndDisplayRoute();
+    },
+
+    toggleHazard(hazard) {
+      if (hazard.kind === "exit") {
+        if (this.closedExits.has(hazard.id)) this.closedExits.delete(hazard.id);
+        else this.closedExits.add(hazard.id);
+      } else if (hazard.kind === "node") {
+        if (this.blockedNodes.has(hazard.id)) this.blockedNodes.delete(hazard.id);
+        else this.blockedNodes.add(hazard.id);
+      } else {
+        if (this.blockedEdges.has(hazard.id)) this.blockedEdges.delete(hazard.id);
+        else this.blockedEdges.add(hazard.id);
+      }
+
+      this.calculateAndDisplayRoute();
+    },
+
+    changeStartNode() {
+      this.calculateAndDisplayRoute();
+    },
+
+    calculateAndDisplayRoute() {
+      if (!this.currentStartNode) {
+        this.lastRouteData = null;
+        this.drawMap();
+        return;
+      }
+
+      if (this.blockedNodes.has(this.currentStartNode)) {
+        this.lastRouteData = null;
+        this.drawMap();
+        return;
+      }
+
+      const exits = this.currentBuilding.nodes.filter(
+        n => n.type === "exit" && !this.closedExits.has(n.id)
+      );
+
+      let bestRoute = null;
+
+      exits.forEach(exit => {
+        const route = this.findShortestPath(this.currentStartNode, exit.id);
+
+        if (route) {
+          if (
+            !bestRoute ||
+            route.cost < bestRoute.cost ||
+            (
+              route.cost === bestRoute.cost &&
+              exit.id < bestRoute.exitId
+            ) ||
+            (
+              route.cost === bestRoute.cost &&
+              exit.id === bestRoute.exitId &&
+              this.compareNodeSequences(route.path, bestRoute.path) < 0
+            )
+          ) {
+            bestRoute = {
+              cost: route.cost,
+              exitId: exit.id,
+              path: route.path
+            };
+          }
+        }
+      });
+
+      this.lastRouteData = bestRoute;
+      this.drawMap();
+    },
+
+    findShortestPath(startId, targetId) {
+      const distances = {};
+      const previous = {};
+      const pq = new Set();
+
+      this.currentBuilding.nodes.forEach(n => {
+        distances[n.id] = Infinity;
+        pq.add(n.id);
+      });
+
+      distances[startId] = 0;
+
+      while (pq.size > 0) {
+        let u = null;
+        let minDist = Infinity;
+
+        pq.forEach(node => {
+          if (distances[node] < minDist) {
+            minDist = distances[node];
+            u = node;
+          }
         });
 
-        function initCanvasResize() {
-            function resize() {
-                const container = document.getElementById('canvasContainer');
-                canvas.width = container.clientWidth;
-                canvas.height = container.clientHeight;
-                drawMap();
-            }
-            window.addEventListener('resize', resize);
-            resize();
+        if (u === null || minDist === Infinity) break;
+        if (u === targetId) break;
+
+        pq.delete(u);
+
+        this.currentBuilding.edges.forEach(e => {
+          if (this.blockedEdges.has(e.id)) return;
+
+          let neighbor = null;
+
+          if (e.from === u) neighbor = e.to;
+          else if (e.to === u) neighbor = e.from;
+
+          if (!neighbor || !pq.has(neighbor)) return;
+
+          if (
+            this.blockedNodes.has(neighbor) &&
+            neighbor !== targetId
+          ) return;
+
+          if (
+            this.closedExits.has(neighbor) &&
+            neighbor !== targetId
+          ) return;
+
+          const alt = distances[u] + e.cost;
+
+          if (alt < distances[neighbor]) {
+            distances[neighbor] = alt;
+            previous[neighbor] = u;
+          }
+        });
+      }
+
+      if (distances[targetId] === Infinity) return null;
+
+      const path = [];
+      let curr = targetId;
+
+      while (curr !== undefined) {
+        path.unshift(curr);
+        curr = previous[curr];
+      }
+
+      return {
+        cost: distances[targetId],
+        path
+      };
+    },
+
+    compareNodeSequences(a, b) {
+      for (let i = 0; i < Math.min(a.length, b.length); i++) {
+        if (a[i] < b[i]) return -1;
+        if (a[i] > b[i]) return 1;
+      }
+
+      return a.length - b.length;
+    },
+
+    drawMap() {
+      if (!this.ctx || !this.canvas || !this.currentBuilding) return;
+
+      const ctx = this.ctx;
+      ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+      // Background grid
+      ctx.save();
+      ctx.fillStyle = "#020617";
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+      ctx.translate(this.offsetX, this.offsetY);
+      ctx.scale(this.scale, this.scale);
+
+      const nodeMap = {};
+      this.currentBuilding.nodes.forEach(n => nodeMap[n.id] = n);
+
+      // Grid in world coordinates
+      const gridSize = 50;
+      const startGX = Math.floor(-this.offsetX / this.scale / gridSize) * gridSize - 100;
+      const endGX = Math.ceil((this.canvas.width - this.offsetX) / this.scale / gridSize) * gridSize + 100;
+      const startGY = Math.floor(-this.offsetY / this.scale / gridSize) * gridSize - 100;
+      const endGY = Math.ceil((this.canvas.height - this.offsetY) / this.scale / gridSize) * gridSize + 100;
+
+      ctx.strokeStyle = "rgba(51,65,85,.16)";
+      ctx.lineWidth = 1;
+
+      for (let x = startGX; x <= endGX; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, startGY);
+        ctx.lineTo(x, endGY);
+        ctx.stroke();
+      }
+
+      for (let y = startGY; y <= endGY; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(startGX, y);
+        ctx.lineTo(endGX, y);
+        ctx.stroke();
+      }
+
+      // Edges
+      this.currentBuilding.edges.forEach(e => {
+        const n1 = nodeMap[e.from];
+        const n2 = nodeMap[e.to];
+        if (!n1 || !n2) return;
+
+        const isBlocked = this.blockedEdges.has(e.id);
+        const isRouteEdge = this.isRouteEdge(e);
+
+        ctx.beginPath();
+        ctx.moveTo(n1.x, n1.y);
+        ctx.lineTo(n2.x, n2.y);
+
+        if (isBlocked) {
+          ctx.strokeStyle = "#ef4444";
+          ctx.lineWidth = 4;
+          ctx.setLineDash([8, 8]);
+        } else if (isRouteEdge) {
+          // Route glow
+          ctx.save();
+          ctx.shadowColor = "#fbbf24";
+          ctx.shadowBlur = 16;
+          ctx.strokeStyle = "rgba(251,191,36,.5)";
+          ctx.lineWidth = 10;
+          ctx.stroke();
+          ctx.restore();
+
+          ctx.beginPath();
+          ctx.moveTo(n1.x, n1.y);
+          ctx.lineTo(n2.x, n2.y);
+          ctx.strokeStyle = "#fbbf24";
+          ctx.lineWidth = 5;
+          ctx.setLineDash([]);
+        } else {
+          ctx.strokeStyle = "#334155";
+          ctx.lineWidth = 3;
+          ctx.setLineDash([]);
         }
 
-        function toggleLanguage() {
-            currentLang = currentLang === 'en' ? 'bn' : 'en';
-            updateStaticLabels();
-            calculateAndDisplayRoute();
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Cost pill
+        const midX = (n1.x + n2.x) / 2;
+        const midY = (n1.y + n2.y) / 2;
+
+        ctx.font = "bold 10px Inter, sans-serif";
+        const label = String(e.cost);
+        const width = ctx.measureText(label).width + 12;
+
+        ctx.fillStyle = "#0f172a";
+        this.roundRect(ctx, midX - width / 2, midY - 22, width, 18, 9);
+        ctx.fill();
+
+        ctx.fillStyle = isRouteEdge ? "#fbbf24" : "#94a3b8";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, midX, midY - 13);
+      });
+
+      // Nodes
+      this.currentBuilding.nodes.forEach(n => {
+        const isBlocked = this.blockedNodes.has(n.id);
+        const isClosedExit = this.closedExits.has(n.id);
+        const isStart = n.id === this.currentStartNode;
+        const isRouteNode =
+          this.lastRouteData &&
+          this.lastRouteData.path.includes(n.id);
+
+        let fill = "#1e293b";
+        let stroke = "#64748b";
+
+        if (isBlocked || isClosedExit) {
+          fill = "#7f1d1d";
+          stroke = "#ef4444";
+        } else if (n.type === "exit") {
+          fill = "#065f46";
+          stroke = "#34d399";
+        } else if (isStart) {
+          fill = "#1d4ed8";
+          stroke = "#60a5fa";
+        } else if (isRouteNode) {
+          fill = "#334155";
+          stroke = "#fbbf24";
         }
 
-        function updateStaticLabels() {
-            const t = translations[currentLang];
-            document.getElementById('appTitle').innerText = t.appTitle;
-            document.getElementById('appSubtitle').innerText = t.appSubtitle;
-            document.getElementById('langText').innerText = t.langText;
-            document.getElementById('resetText').innerText = t.resetText;
-            document.getElementById('secConfig').innerText = t.secConfig;
-            document.getElementById('lblLoadSample').innerText = t.lblLoadSample;
-            document.getElementById('lblUploadJson').innerText = t.lblUploadJson;
-            document.getElementById('secRouting').innerText = t.secRouting;
-            document.getElementById('lblSelectStart').innerText = t.lblSelectStart;
-            document.getElementById('lblStatusHeader').innerText = t.lblStatusHeader;
-            document.getElementById('secHazards').innerText = t.secHazards;
-            document.getElementById('lblHazardHint').innerText = t.lblHazardHint;
-            document.getElementById('legendRoom').innerText = t.legendRoom;
-            document.getElementById('legendExit').innerText = t.legendExit;
-            document.getElementById('legendBlocked').innerText = t.legendBlocked;
-            document.getElementById('legendRoute').innerText = t.legendRoute;
-            document.getElementById('footerTip').innerText = t.footerTip;
+        if (isStart) {
+          ctx.save();
+          ctx.shadowColor = "#3b82f6";
+          ctx.shadowBlur = 22;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, 29, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(59,130,246,.18)";
+          ctx.fill();
+          ctx.restore();
         }
 
-        function loadBuildingData(buildingObj) {
-            try {
-                validateBuildingSchema(buildingObj);
-                currentBuilding = buildingObj;
-                initialState = JSON.parse(JSON.stringify(buildingObj.initial_state || { blocked_nodes: [], blocked_edges: [], closed_exits: [] }));
-                
-                document.getElementById('buildingNameLabel').innerText = `Building: ${currentBuilding.building}`;
-                
-                resetToInitialState();
-            } catch (err) {
-                alert("Invalid Building JSON: " + err.message);
-                console.error(err);
-            }
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, 24, 0, Math.PI * 2);
+        ctx.fillStyle = fill;
+        ctx.fill();
+
+        ctx.lineWidth = isStart ? 4 : 2;
+        ctx.strokeStyle = stroke;
+        ctx.stroke();
+
+        // Node ID
+        ctx.fillStyle = "#fff";
+        ctx.font = "900 12px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(n.id, n.x, n.y);
+
+        // Label
+        ctx.fillStyle = "#cbd5e1";
+        ctx.font = "600 11px Inter, sans-serif";
+        ctx.fillText(n.label, n.x, n.y + 39);
+
+        // Icons
+        if (n.type === "exit" && !isClosedExit) {
+          ctx.font = "14px sans-serif";
+          ctx.fillText("↗", n.x + 18, n.y - 17);
         }
 
-        function validateBuildingSchema(data) {
-            if (!data.building || typeof data.building !== 'string') throw new Error("Missing or invalid 'building' name.");
-            if (!Array.isArray(data.nodes) || data.nodes.length < 2) throw new Error("Nodes must be an array with at least 2 elements.");
-            if (!Array.isArray(data.edges) || data.edges.length < 1) throw new Error("Edges must be a non-empty array.");
-            
-            const nodeIds = new Set();
-            data.nodes.forEach(n => {
-                if (!n.id || !n.label || !n.type || typeof n.x !== 'number' || typeof n.y !== 'number') {
-                    throw new Error("Invalid node structure.");
-                }
-                if (nodeIds.has(n.id)) throw new Error(`Duplicate node ID: ${n.id}`);
-                nodeIds.add(n.id);
-            });
-
-            data.edges.forEach(e => {
-                if (!e.id || !e.from || !e.to || typeof e.cost !== 'number' || e.cost <= 0) {
-                    throw new Error("Invalid edge structure or non-positive cost.");
-                }
-                if (!nodeIds.has(e.from) || !nodeIds.has(e.to)) {
-                    throw new Error(`Edge ${e.id} references non-existent node.`);
-                }
-            });
+        if (isBlocked || isClosedExit) {
+          ctx.font = "bold 15px sans-serif";
+          ctx.fillText("×", n.x + 18, n.y - 18);
         }
+      });
 
-        function resetToInitialState() {
-            blockedNodes = new Set(initialState.blocked_nodes || []);
-            blockedEdges = new Set(initialState.blocked_edges || []);
-            closedExits = new Set(initialState.closed_exits || []);
+      ctx.restore();
+    },
 
-            // Ensure start node is valid
-            const validNodes = currentBuilding.nodes.filter(n => n.type !== 'exit');
-            if (!validNodes.some(n => n.id === currentStartNode)) {
-                currentStartNode = validNodes.length > 0 ? validNodes[0].id : '';
-            }
+    roundRect(ctx, x, y, w, h, r) {
+      const radius = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + w, y, x + w, y + h, radius);
+      ctx.arcTo(x + w, y + h, x, y + h, radius);
+      ctx.arcTo(x, y + h, x, y, radius);
+      ctx.arcTo(x, y, x + w, y, radius);
+      ctx.closePath();
+    },
 
-            populateStartNodeDropdown();
-            populateHazardControls();
-            autoFitView();
-            calculateAndDisplayRoute();
+    isRouteEdge(edge) {
+      if (!this.lastRouteData?.path) return false;
+
+      for (let i = 0; i < this.lastRouteData.path.length - 1; i++) {
+        const a = this.lastRouteData.path[i];
+        const b = this.lastRouteData.path[i + 1];
+
+        if (
+          (a === edge.from && b === edge.to) ||
+          (a === edge.to && b === edge.from)
+        ) {
+          return true;
         }
+      }
 
-        function populateStartNodeDropdown() {
-            const select = document.getElementById('startNodeSelect');
-            select.innerHTML = '';
-            currentBuilding.nodes.forEach(n => {
-                if (n.type !== 'exit') {
-                    const opt = document.createElement('option');
-                    opt.value = n.id;
-                    opt.text = `${n.label} (${n.id})`;
-                    if (n.id === currentStartNode) opt.selected = true;
-                    select.appendChild(opt);
-                }
-            });
+      return false;
+    },
+
+    onMouseDown(e) {
+      this.isDragging = true;
+      this.dragStartX = e.clientX - this.offsetX;
+      this.dragStartY = e.clientY - this.offsetY;
+    },
+
+    onMouseMove(e) {
+      if (!this.isDragging) return;
+
+      this.offsetX = e.clientX - this.dragStartX;
+      this.offsetY = e.clientY - this.dragStartY;
+      this.drawMap();
+    },
+
+    onMouseUp() {
+      this.isDragging = false;
+    },
+
+    onWheel(e) {
+      const zoomIntensity = 0.1;
+      const wheel = e.deltaY < 0 ? 1 : -1;
+      const zoomFactor = Math.exp(wheel * zoomIntensity);
+
+      const rect = this.canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const nextScale = Math.min(
+        Math.max(this.scale * zoomFactor, 0.35),
+        3
+      );
+
+      const actualFactor = nextScale / this.scale;
+
+      this.offsetX = mouseX - (mouseX - this.offsetX) * actualFactor;
+      this.offsetY = mouseY - (mouseY - this.offsetY) * actualFactor;
+      this.scale = nextScale;
+
+      this.drawMap();
+    },
+
+    zoomIn() {
+      this.scale = Math.min(this.scale * 1.2, 3);
+      this.drawMap();
+    },
+
+    zoomOut() {
+      this.scale = Math.max(this.scale / 1.2, 0.35);
+      this.drawMap();
+    },
+
+    fitView() {
+      this.autoFitView();
+    },
+
+    autoFitView() {
+      if (!this.currentBuilding.nodes.length || !this.canvas) return;
+
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+
+      this.currentBuilding.nodes.forEach(n => {
+        minX = Math.min(minX, n.x);
+        maxX = Math.max(maxX, n.x);
+        minY = Math.min(minY, n.y);
+        maxY = Math.max(maxY, n.y);
+      });
+
+      const padding = 120;
+      const w = this.canvas.width || 800;
+      const h = this.canvas.height || 600;
+
+      const scaleX = (w - padding * 2) / (maxX - minX || 1);
+      const scaleY = (h - padding * 2) / (maxY - minY || 1);
+
+      this.scale = Math.min(scaleX, scaleY, 1.5);
+      this.scale = Math.max(this.scale, 0.5);
+
+      this.offsetX = w / 2 - ((minX + maxX) / 2) * this.scale;
+      this.offsetY = h / 2 - ((minY + maxY) / 2) * this.scale;
+
+      this.drawMap();
+    },
+
+    onCanvasClick(e) {
+      // Ignore clicks that were actually drags.
+      if (Math.hypot(e.clientX - (this.dragStartX + this.offsetX), e.clientY - (this.dragStartY + this.offsetY)) > 8) {
+        return;
+      }
+
+      const rect = this.canvas.getBoundingClientRect();
+
+      const clickX =
+        (e.clientX - rect.left - this.offsetX) / this.scale;
+
+      const clickY =
+        (e.clientY - rect.top - this.offsetY) / this.scale;
+
+      // Node click
+      for (const n of this.currentBuilding.nodes) {
+        const dist = Math.hypot(n.x - clickX, n.y - clickY);
+
+        if (dist <= 28) {
+          if (n.type === "exit") {
+            if (this.closedExits.has(n.id)) this.closedExits.delete(n.id);
+            else this.closedExits.add(n.id);
+          } else {
+            if (this.blockedNodes.has(n.id)) this.blockedNodes.delete(n.id);
+            else this.blockedNodes.add(n.id);
+          }
+
+          this.calculateAndDisplayRoute();
+          return;
         }
+      }
 
-        function populateHazardControls() {
-            const container = document.getElementById('hazardTogglesList');
-            container.innerHTML = '';
+      // Edge click
+      for (const edge of this.currentBuilding.edges) {
+        const n1 = this.currentBuilding.nodes.find(n => n.id === edge.from);
+        const n2 = this.currentBuilding.nodes.find(n => n.id === edge.to);
 
-            // Rooms & Junctions
-            currentBuilding.nodes.forEach(n => {
-                if (n.type !== 'exit') {
-                    const isBlocked = blockedNodes.has(n.id);
-                    container.appendChild(createHazardToggleItem(n.id, `Room/Junction: ${n.label}`, isBlocked, (val) => {
-                        if (val) blockedNodes.add(n.id); else blockedNodes.delete(n.id);
-                        calculateAndDisplayRoute();
-                    }));
-                } else {
-                    const isClosed = closedExits.has(n.id);
-                    container.appendChild(createHazardToggleItem(n.id, `Exit: ${n.label}`, isClosed, (val) => {
-                        if (val) closedExits.add(n.id); else closedExits.delete(n.id);
-                        calculateAndDisplayRoute();
-                    }));
-                }
-            });
+        if (!n1 || !n2) continue;
 
-            // Edges (Corridors)
-            currentBuilding.edges.forEach(e => {
-                const isBlocked = blockedEdges.has(e.id);
-                container.appendChild(createHazardToggleItem(e.id, `Corridor: ${e.from} ↔ ${e.to} (cost ${e.cost})`, isBlocked, (val) => {
-                    if (val) blockedEdges.add(e.id); else blockedEdges.delete(e.id);
-                    calculateAndDisplayRoute();
-                }));
-            });
+        const dist = this.distToSegment(
+          { x: clickX, y: clickY },
+          { x: n1.x, y: n1.y },
+          { x: n2.x, y: n2.y }
+        );
+
+        if (dist <= 12) {
+          if (this.blockedEdges.has(edge.id)) this.blockedEdges.delete(edge.id);
+          else this.blockedEdges.add(edge.id);
+
+          this.calculateAndDisplayRoute();
+          return;
         }
+      }
+    },
 
-        function createHazardToggleItem(id, labelText, checked, onChange) {
-            const div = document.createElement('div');
-            div.className = "flex items-center justify-between bg-slate-800/80 px-3 py-2 rounded-lg border border-slate-700/60 text-xs";
-            
-            const span = document.createElement('span');
-            span.className = "text-slate-300 truncate pr-2";
-            span.innerText = labelText;
+    distToSegment(p, a, b) {
+      const l2 =
+        (b.x - a.x) ** 2 +
+        (b.y - a.y) ** 2;
 
-            const label = document.createElement('label');
-            label.className = "relative inline-flex items-center cursor-pointer";
-            
-            const input = document.createElement('input');
-            input.type = "checkbox";
-            input.checked = checked;
-            input.className = "sr-only peer";
-            input.onchange = (e) => onChange(e.target.checked);
+      if (l2 === 0) {
+        return Math.hypot(p.x - a.x, p.y - a.y);
+      }
 
-            const track = document.createElement('div');
-            track.className = "w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-600";
+      let t =
+        ((p.x - a.x) * (b.x - a.x) +
+          (p.y - a.y) * (b.y - a.y)) / l2;
 
-            label.appendChild(input);
-            label.appendChild(track);
-            div.appendChild(span);
-            div.appendChild(label);
-            return div;
+      t = Math.max(0, Math.min(1, t));
+
+      return Math.hypot(
+        p.x - (a.x + t * (b.x - a.x)),
+        p.y - (a.y + t * (b.y - a.y))
+      );
+    },
+
+    loadSelectedScenario(key) {
+      this.resetToInitialState();
+
+      if (key === "blocked_c2") {
+        this.blockedNodes.add("C2");
+      } else if (key === "closed_exits") {
+        this.closedExits.add("E1");
+        this.closedExits.add("E2");
+      } else if (key === "diff_start") {
+        this.currentStartNode = "R2";
+      } else if (key === "blocked_start") {
+        this.blockedNodes.add("R1");
+      }
+
+      this.calculateAndDisplayRoute();
+    },
+
+    handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = e => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          this.loadBuildingData(parsed);
+        } catch (err) {
+          alert("Failed to parse JSON file: " + err.message);
         }
+      };
 
-        function changeStartNode(nodeId) {
-            currentStartNode = nodeId;
-            calculateAndDisplayRoute();
-        }
-
-        // Routing Algorithm (Dijkstra with strict tie breaking)
-        let lastRouteData = null;
-
-        function calculateAndDisplayRoute() {
-            const t = translations[currentLang];
-            const statusCard = document.getElementById('routeStatusCard');
-            const resultText = document.getElementById('routeResultText');
-            const sequenceText = document.getElementById('routeSequenceText');
-            const costBadge = document.getElementById('routeCostBadge');
-
-            if (!currentStartNode) {
-                statusCard.className = "mt-4 p-3.5 rounded-lg border bg-slate-800 border-slate-700";
-                resultText.innerText = t.statusNoStart;
-                sequenceText.innerText = "";
-                costBadge.innerText = "Cost: --";
-                lastRouteData = null;
-                drawMap();
-                return;
-            }
-
-            // Check if start node is blocked
-            if (blockedNodes.has(currentStartNode)) {
-                statusCard.className = "mt-4 p-3.5 rounded-lg border bg-red-950/50 border-red-800/80";
-                resultText.innerText = t.statusBlockedStart;
-                sequenceText.innerText = `Node ${currentStartNode} is currently blocked.`;
-                costBadge.innerText = "Cost: X";
-                lastRouteData = null;
-                drawMap();
-                return;
-            }
-
-            // Run Dijkstra to find min cost to all reachable open exits
-            const exits = currentBuilding.nodes.filter(n => n.type === 'exit' && !closedExits.has(n.id));
-            let bestRoute = null; // { cost, exitId, path }
-
-            exits.forEach(exit => {
-                const route = findShortestPath(currentStartNode, exit.id);
-                if (route) {
-                    if (!bestRoute || 
-                        route.cost < bestRoute.cost || 
-                        (route.cost === bestRoute.cost && exit.id < bestRoute.exitId) ||
-                        (route.cost === bestRoute.cost && exit.id === bestRoute.exitId && compareNodeSequences(route.path, bestRoute.path) < 0)) {
-                        bestRoute = { cost: route.cost, exitId: exit.id, path: route.path };
-                    }
-                }
-            });
-
-            lastRouteData = bestRoute;
-
-            if (!bestRoute) {
-                statusCard.className = "mt-4 p-3.5 rounded-lg border bg-amber-950/40 border-amber-800/80";
-                resultText.innerText = t.statusNoRoute;
-                sequenceText.innerText = "No accessible open exit found.";
-                costBadge.innerText = "Cost: ∞";
-            } else {
-                statusCard.className = "mt-4 p-3.5 rounded-lg border bg-emerald-950/40 border-emerald-800/80";
-                resultText.innerText = `Route to ${bestRoute.exitId}`;
-                sequenceText.innerText = bestRoute.path.join(' ➔ ');
-                costBadge.innerText = `Cost: ${bestRoute.cost}`;
-            }
-
-            drawMap();
-        }
-
-        function findShortestPath(startId, targetId) {
-            const distances = {};
-            const previous = {};
-            const pq = new Set();
-
-            currentBuilding.nodes.forEach(n => {
-                distances[n.id] = Infinity;
-                pq.add(n.id);
-            });
-            distances[startId] = 0;
-
-            while (pq.size > 0) {
-                // Find node with min distance in pq
-                let u = null;
-                let minDist = Infinity;
-                pq.forEach(node => {
-                    if (distances[node] < minDist) {
-                        minDist = distances[node];
-                        u = node;
-                    }
-                });
-
-                if (u === null || minDist === Infinity) break;
-                if (u === targetId) break; // reached target
-
-                pq.delete(u);
-
-                // Explore neighbors via unblocked edges
-                currentBuilding.edges.forEach(e => {
-                    if (blockedEdges.has(e.id)) return;
-
-                    let neighbor = null;
-                    if (e.from === u) neighbor = e.to;
-                    else if (e.to === u) neighbor = e.from;
-
-                    if (neighbor && pq.has(neighbor)) {
-                        // Check if neighbor node is blocked (unless it's the target exit)
-                        if (blockedNodes.has(neighbor) && neighbor !== targetId) return;
-                        // Check if intermediate node is a closed exit
-                        if (closedExits.has(neighbor) && neighbor !== targetId) return;
-
-                        const alt = distances[u] + e.cost;
-                        if (alt < distances[neighbor]) {
-                            distances[neighbor] = alt;
-                            previous[neighbor] = u;
-                        }
-                    }
-                });
-            }
-
-            if (distances[targetId] === Infinity) return null;
-
-            // Reconstruct path
-            const path = [];
-            let curr = targetId;
-            while (curr !== undefined) {
-                path.unshift(curr);
-                curr = previous[curr];
-            }
-
-            return { cost: distances[targetId], path };
-        }
-
-        function compareNodeSequences(pathA, pathB) {
-            for (let i = 0; i < Math.min(pathA.length, pathB.length); i++) {
-                if (pathA[i] < pathB[i]) return -1;
-                if (pathA[i] > pathB[i]) return 1;
-            }
-            return pathA.length - pathB.length;
-        }
-
-        // Canvas Rendering & Interaction
-        function drawMap() {
-            if (!ctx) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            ctx.save();
-            ctx.translate(offsetX, offsetY);
-            ctx.scale(scale, scale);
-
-            const nodeMap = {};
-            currentBuilding.nodes.forEach(n => nodeMap[n.id] = n);
-
-            // 1. Draw Edges (Corridors)
-            currentBuilding.edges.forEach(e => {
-                const n1 = nodeMap[e.from];
-                const n2 = nodeMap[e.to];
-                if (!n1 || !n2) return;
-
-                const isBlocked = blockedEdges.has(e.id);
-                let isRouteEdge = false;
-
-                if (lastRouteData && lastRouteData.path) {
-                    for (let i = 0; i < lastRouteData.path.length - 1; i++) {
-                        if ((lastRouteData.path[i] === e.from && lastRouteData.path[i+1] === e.to) ||
-                            (lastRouteData.path[i] === e.to && lastRouteData.path[i+1] === e.from)) {
-                            isRouteEdge = true;
-                            break;
-                        }
-                    }
-                }
-
-                ctx.beginPath();
-                ctx.moveTo(n1.x, n1.y);
-                ctx.lineTo(n2.x, n2.y);
-
-                if (isBlocked) {
-                    ctx.strokeStyle = '#ef4444';
-                    ctx.lineWidth = 3;
-                    ctx.setLineDash([6, 6]);
-                } else if (isRouteEdge) {
-                    ctx.strokeStyle = '#fbbf24'; // Amber highlight for optimal route
-                    ctx.lineWidth = 5;
-                    ctx.setLineDash([]);
-                } else {
-                    ctx.strokeStyle = '#475569';
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([]);
-                }
-                ctx.stroke();
-                ctx.setLineDash([]); // reset
-
-                // Draw edge cost label
-                const midX = (n1.x + n2.x) / 2;
-                const midY = (n1.y + n2.y) / 2;
-                ctx.fillStyle = '#94a3b8';
-                ctx.font = '11px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(`cost: ${e.cost}`, midX, midY - 10);
-            });
-
-            // 2. Draw Nodes (Rooms, Junctions, Exits)
-            currentBuilding.nodes.forEach(n => {
-                const isBlocked = blockedNodes.has(n.id);
-                const isClosedExit = closedExits.has(n.id);
-                const isStart = (n.id === currentStartNode);
-
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, 24, 0, Math.PI * 2);
-
-                if (isBlocked || isClosedExit) {
-                    ctx.fillStyle = '#7f1d1d';
-                } else if (n.type === 'exit') {
-                    ctx.fillStyle = '#065f46';
-                } else if (isStart) {
-                    ctx.fillStyle = '#1e40af';
-                } else {
-                    ctx.fillStyle = '#334155';
-                }
-                ctx.fill();
-
-                // Border ring
-                ctx.lineWidth = isStart ? 4 : 2;
-                ctx.strokeStyle = isStart ? '#60a5fa' : ((isBlocked || isClosedExit) ? '#ef4444' : '#64748b');
-                ctx.stroke();
-
-                // Node text inside circle
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 12px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(n.id, n.x, n.y);
-
-                // Label below node
-                ctx.font = '11px sans-serif';
-                ctx.fillStyle = '#cbd5e1';
-                ctx.fillText(n.label, n.x, n.y + 36);
-
-                // Hazard cross icon overlay if blocked/closed
-                if (isBlocked || isClosedExit) {
-                    ctx.fillStyle = '#ef4444';
-                    ctx.font = 'bold 16px sans-serif';
-                    ctx.fillText('❌', n.x + 16, n.y - 16);
-                }
-            });
-
-            ctx.restore();
-        }
-
-        // Canvas Pan & Zoom Handlers
-        function onMouseDown(e) {
-            isDragging = true;
-            startX = e.clientX - offsetX;
-            startY = e.clientY - offsetY;
-        }
-
-        function onMouseMove(e) {
-            if (!isDragging) return;
-            offsetX = e.clientX - startX;
-            offsetY = e.clientY - startY;
-            drawMap();
-        }
-
-        function onMouseUp() {
-            isDragging = false;
-        }
-
-        function onWheel(e) {
-            e.preventDefault();
-            const zoomIntensity = 0.1;
-            const wheel = e.deltaY < 0 ? 1 : -1;
-            const zoomFactor = Math.exp(wheel * zoomIntensity);
-
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-
-            offsetX = mouseX - (mouseX - offsetX) * zoomFactor;
-            offsetY = mouseY - (mouseY - offsetY) * zoomFactor;
-            scale *= zoomFactor;
-
-            drawMap();
-        }
-
-        function autoFitView() {
-            if (!currentBuilding.nodes.length) return;
-            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-            currentBuilding.nodes.forEach(n => {
-                if (n.x < minX) minX = n.x;
-                if (n.x > maxX) maxX = n.x;
-                if (n.y < minY) minY = n.y;
-                if (n.y > maxY) maxY = n.y;
-            });
-
-            const padding = 80;
-            const w = canvas.width || 800;
-            const h = canvas.height || 600;
-
-            const scaleX = (w - padding * 2) / (maxX - minX || 1);
-            const scaleY = (h - padding * 2) / (maxY - minY || 1);
-            scale = Math.min(scaleX, scaleY, 1.5);
-            scale = Math.max(scale, 0.5);
-
-            offsetX = (w / 2) - ((minX + maxX) / 2) * scale;
-            offsetY = (h / 2) - ((minY + maxY) / 2) * scale;
-            drawMap();
-        }
-
-        // Click on canvas nodes or edges to toggle hazards interactively
-        function onCanvasClick(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clickX = (e.clientX - rect.left - offsetX) / scale;
-            const clickY = (e.clientY - rect.top - offsetY) / scale;
-
-            // Check node click
-            for (const n of currentBuilding.nodes) {
-                const dist = Math.hypot(n.x - clickX, n.y - clickY);
-                if (dist <= 24) {
-                    if (n.type === 'exit') {
-                        if (closedExits.has(n.id)) closedExits.delete(n.id);
-                        else closedExits.add(n.id);
-                    } else {
-                        if (blockedNodes.has(n.id)) blockedNodes.delete(n.id);
-                        else blockedNodes.add(n.id);
-                    }
-                    populateHazardControls();
-                    calculateAndDisplayRoute();
-                    return;
-                }
-            }
-
-            // Check edge click
-            for (const edge of currentBuilding.edges) {
-                const n1 = currentBuilding.nodes.find(n => n.id === edge.from);
-                const n2 = currentBuilding.nodes.find(n => n.id === edge.to);
-                if (!n1 || !n2) continue;
-
-                // Point to line segment distance
-                const dist = distToSegment({x: clickX, y: clickY}, {x: n1.x, y: n1.y}, {x: n2.x, y: n2.y});
-                if (dist <= 10) {
-                    if (blockedEdges.has(edge.id)) blockedEdges.delete(edge.id);
-                    else blockedEdges.add(edge.id);
-                    populateHazardControls();
-                    calculateAndDisplayRoute();
-                    return;
-                }
-            }
-        }
-
-        function distToSegment(p, a, b) {
-            const l2 = (b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y);
-            if (l2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
-            let t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2;
-            t = Math.max(0, Math.min(1, t));
-            return Math.hypot(p.x - (a.x + t * (b.x - a.x)), p.y - (a.y + t * (b.y - a.y)));
-        }
-
-        // Scenario Quick Loaders
-        function loadSelectedScenario(scenarioKey) {
-            // Reset base first
-            resetToInitialState();
-
-            if (scenarioKey === 'baseline') {
-                // Already initial state
-            } else if (scenarioKey === 'blocked_c2') {
-                blockedNodes.add('C2');
-            } else if (scenarioKey === 'closed_exits') {
-                closedExits.add('E1');
-                closedExits.add('E2');
-            } else if (scenarioKey === 'diff_start') {
-                currentStartNode = 'R2';
-            } else if (scenarioKey === 'blocked_start') {
-                blockedNodes.add('R1');
-            }
-
-            populateStartNodeDropdown();
-            populateHazardControls();
-            calculateAndDisplayRoute();
-        }
-
-        // File Upload Handler
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    loadBuildingData(parsed);
-                } catch (err) {
-                    alert("Failed to parse JSON file: " + err.message);
-                }
-            };
-            reader.readAsText(file);
-        }
-    </script>
+      reader.readAsText(file);
+    }
+  }
+}).mount("#app");
+</script>
 </body>
 </html>
